@@ -6,6 +6,7 @@ ensure => installed;
 service{'snmpd':
 ensure => true;
 }
+class{'snmpd':}
 notify{"Hello ${fqdn}":}
 
 }

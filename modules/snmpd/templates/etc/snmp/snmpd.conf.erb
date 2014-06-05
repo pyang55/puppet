@@ -1,0 +1,59 @@
+rocommunity LogicMan localhost
+rocommunity LogicMan 127.0.0.0/8
+
+# in AWS requests can come from 10/8 addresses
+# when using ec2 nameservers
+rocommunity LogicMan 10.0.0.0/8
+
+#lab/demo
+rocommunity LogicMan 10.0.0.1
+
+# Our networks (defined in puppet variables in site.pp)
+<% @pub_networks.each do |net| -%>
+rocommunity LogicMan <%= net %>
+<% end -%>
+
+syslocation logicmonitor/utils Datacenter
+syscontact noc@logicmonitor.com
+
+# Allow Systems Management Data Engine SNMP to connect to snmpd using SMUX - not on Dells anymore
+#smuxpeer .1.3.6.1.4.1.674.10892.1
+extend postfix-recv-local  /usr/local/logicmonitor/utils/postfixStats-reporter.pl recv:local
+extend postfix-recv-smtp  /usr/local/logicmonitor/utils/postfixStats-reporter.pl recv:smtp
+extend postfix-sent-dovecot  /usr/local/logicmonitor/utils/postfixStats-reporter.pl sent:dovecot
+extend postfix-sent-local /usr/local/logicmonitor/utils/postfixStats-reporter.pl sent:local
+extend postfix-sent-smtp /usr/local/logicmonitor/utils/postfixStats-reporter.pl sent:smtp
+extend postfix-smtp-bounce /usr/local/logicmonitor/utils/postfixStats-reporter.pl smtp:5xx
+extend postfix-smtp-errorbounce /usr/local/logicmonitor/utils/postfixStats-reporter.pl smtp:4xx
+extend postfix-smtpd-rejected /usr/local/logicmonitor/utils/postfixStats-reporter.pl smtpd:5xx
+extend postfix-active /usr/local/logicmonitor/utils/postfixStats-reporter.pl active
+extend postfix-deferred /usr/local/logicmonitor/utils/postfixStats-reporter.pl deferred
+
+extend diskstats /bin/cat /proc/diskstats
+extend lm-proc_meminfo /bin/cat /proc/meminfo
+extend lm-bond0 /bin/cat /proc/net/bonding/bond0
+extend lm-nscdstats /usr/sbin/nscd -g
+
+extend lm-inodes /bin/df -ilTP -x tmpfs
+
+# list entire crontab
+extend crontab-list /usr/bin/crontab -l
+
+# check puppet environment
+extend lm-puppet-env /usr/bin/puppet agent --configprint environment
+
+# check entries in sshguard iptables chain for jump hosts
+# this will always return at least one if the chain exists
+<% if @fqdn =~ /^jump/ -%>
+extend lm-sshguard /sbin/iptables -S sshguard
+<% end -%>
+
+#Sun specific hardware monitoring
+dlmod sunHwMonMIB /usr/lib64/sun-ssm/libSunHwMonMIB.so
+dlmod TrapInterface /usr/lib64/sun-ssm/libSunHwTrapIntf.so
+#LSI RAID controller monitoring
+pass .1.3.6.1.4.1.3582 /usr/sbin/lsi_mrdsnmpmain
+
+# Dell OpenManage
+smuxpeer .1.3.6.1.4.1.674.10892.1
+
